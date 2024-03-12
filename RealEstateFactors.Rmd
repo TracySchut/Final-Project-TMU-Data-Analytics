@@ -1,0 +1,87 @@
+---
+title: "Real Estate Factors"
+author: "Tracy Schut"
+date: "2024-03-12"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r loading}
+House_listings <- read.csv("~/Desktop/House_listings.csv")
+House_listings$City <- as.factor(House_listings$City)
+```
+```{r Multiple linear regression}
+str(House_listings)
+model <- lm(Price ~ Median_Family_Income  + Number_Beds + Number_Baths, data = House_listings)
+summary(model)
+```
+```{r K means Clustering}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(cluster)
+scaled_House_listings <- scale(House_listings[, c("Price", "Number_Beds", "Number_Baths", "Median_Family_Income")])
+k <- 5
+kmeans_result <- kmeans(scaled_House_listings, centers = k)
+cluster_assignments <- kmeans_result$cluster
+my_data <- cbind(House_listings, cluster = cluster_assignments)
+
+ggplot(my_data, aes(x = Price, y = Median_Family_Income, color = factor(cluster))) +
+  geom_point() +
+  labs(title = "K-means Clustering of Real Estate Factors",
+       x = "Price",
+       y = "Median Family Income",
+       color = "Cluster") +
+  theme_minimal()
+# Now Price / Number Baths
+scaled_House_listings <- scale(House_listings[, c("Price", "Number_Beds", "Number_Baths", "Median_Family_Income")])
+k <- 5
+kmeans_result <- kmeans(scaled_House_listings, centers = k)
+cluster_assignments <- kmeans_result$cluster
+my_data <- cbind(House_listings, cluster = cluster_assignments)
+
+ggplot(my_data, aes(x = Price, y = Number_Baths, color = factor(cluster))) +
+  geom_point() +
+  labs(title = "K-means Clustering of Real Estate Factors",
+       x = "Price",
+       y = "Number of Baths",
+       color = "Cluster") +
+  theme_minimal()
+```
+```{r Naive Bayes: very bad, may not use:}
+install.packages("caret", repos = "https://cloud.r-project.org/")
+library(caret)
+library(e1071)
+House_listings$Price <- as.factor(House_listings$Price)
+set.seed(123)
+train_indices <- sample(1:nrow(House_listings), 0.7 * nrow(House_listings))
+train_data <- House_listings[train_indices, ]
+test_data <- House_listings[-train_indices, ]
+model <- naiveBayes(Price ~ City + Number_Beds + Number_Baths, data = train_data)
+predictions <- predict(model, newdata = test_data)
+accuracy <- mean(predictions == test_data$Price)
+print(paste("Accuracy:", accuracy))
+```
+```{r Cross Validation:}
+control <- trainControl(method = "cv", number = 10)
+tryCatch({
+  model <- train(Price ~ City + Number_Beds + Number_Baths + Median_Family_Income, 
+                 data = House_listings, 
+                 method = "glm", 
+                 trControl = control)
+  summary(model)
+}, error = function(e) {
+  message("Error:", conditionMessage(e))
+})
+```
